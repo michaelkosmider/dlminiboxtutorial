@@ -5,9 +5,9 @@
   padding: 0; */
 }
 
-html {
-  scroll-behavior: smooth; /* For smooth scrolling from TOC */
-}
+/* html {
+  scroll-behavior: smooth;
+} */
 
 body {
   font-family: 'Roboto', sans-serif;
@@ -163,6 +163,46 @@ body {
                            doesn't overlap content too much, or to give visual breathing room */
   -webkit-overflow-scrolling: touch; /* For smoother scrolling on iOS devices */
 }
+
+.theorem-box {
+  border: 1px solid #888;
+  border-left: 5px solid #2c3e50;
+  background: #f9f9f9;
+  padding: 1em;
+  margin: 1em 0;
+  font-family: serif;
+}
+.theorem-title {
+  font-weight: bold;
+  margin-bottom: 0.5em;
+}
+.qed {
+  text-align: right;
+  font-size: 1.2em;
+  margin-top: 1em;
+}
+.algorithm-box {
+  background-color: #fdf4dc;
+  border-left: 5px solid #ccc;
+  padding: 1em;
+  font-family: 'Computer Modern', serif;
+  font-size: 0.9em;
+  max-width: 600px;
+}
+
+.algorithm-box code {
+  display: block;
+  white-space: pre;
+  font-family: 'Courier New', monospace;
+}
+
+.algorithm-title {
+  font-weight: bold;
+  font-variant: small-caps;
+  margin-bottom: 0.5em;
+  font-size: 1.1em;
+}
+
 /* Responsive Adjustments */
 
 /* Tablets and smaller desktops */

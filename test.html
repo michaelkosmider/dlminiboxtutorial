@@ -1,0 +1,105 @@
+      
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computation Graph with MathJax</title>
+
+    <!-- 1. Load MathJax -->
+    <script>
+        // 2. Configure MathJax to process LaTeX inside SVG elements
+        MathJax = {
+            tex: {
+                packages: {'[+]': ['svg']} // Load the SVG package
+            },
+            svg: {
+                fontCache: 'global' // Use the global font cache for consistency
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <!-- Optional: Basic styling for the container -->
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 2em;
+        }
+        .container {
+            max-width: 600px;
+            text-align: center;
+        }
+        /* Style for the SVG graph elements */
+        .computation-graph {
+            margin-top: 2em; /* Space between equations and graph */
+        }
+        .computation-graph line {
+            stroke: black;
+            stroke-width: 1.5;
+        }
+        .computation-graph text {
+            font-size: 1.2em; /* Adjust font size of nodes as needed */
+            fill: black;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- 3. The Equations (using standard MathJax) -->
+    $$
+    \begin{align*}
+    y_1 &= f_1(x_1, x_2, x_3, x_4) = x_1 + x_2 + x_3 + x_4 \\
+    y_2 &= f_2(x_4) = x_4^2 \\
+    z   &= f_3(x_1, y_1, y_2) = x_1 \cdot y_1 + y_2
+    \end{align*}
+    $$
+
+    <!-- 4. The Computation Graph (using SVG) -->
+    <svg class="computation-graph" width="100%" viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- Define an arrowhead marker to be used on the lines -->
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
+            </marker>
+        </defs>
+
+        <!-- Edges (Lines with arrowheads) -->
+        <!-- Lines to y1 -->
+        <line x1="40" y1="20"  x2="190" y2="80"  marker-end="url(#arrowhead)" />
+        <line x1="40" y1="70"  x2="190" y2="80"  marker-end="url(#arrowhead)" />
+        <line x1="40" y1="120" x2="190" y2="80"  marker-end="url(#arrowhead)" />
+        <line x1="40" y1="170" x2="190" y2="80"  marker-end="url(#arrowhead)" />
+        <!-- Line to y2 -->
+        <line x1="40" y1="170" x2="190" y2="150" marker-end="url(#arrowhead)" />
+        <!-- Lines to z -->
+        <line x1="40"  y1="20"  x2="340" y2="90" marker-end="url(#arrowhead)" />
+        <line x1="210" y1="80"  x2="340" y2="90" marker-end="url(#arrowhead)" />
+        <line x1="210" y1="150" x2="340" y2="90" marker-end="url(#arrowhead)" />
+
+
+        <!-- Nodes (Text elements with LaTeX code) -->
+        <!-- MathJax will find and render the LaTeX inside these <text> tags -->
+        <text x="30"  y="20"  text-anchor="middle" dominant-baseline="middle">x_1</text>
+        <text x="30"  y="70"  text-anchor="middle" dominant-baseline="middle">x_2</text>
+        <text x="30"  y="120" text-anchor="middle" dominant-baseline="middle">x_3</text>
+        <text x="30"  y="170" text-anchor="middle" dominant-baseline="middle">x_4</text>
+
+        <text x="200" y="80"  text-anchor="middle" dominant-baseline="middle">y_1</text>
+        <text x="200" y="150" text-anchor="middle" dominant-baseline="middle">y_2</text>
+
+        <text x="350" y="90"  text-anchor="middle" dominant-baseline="middle">z</text>
+
+    </svg>
+
+</div>
+
+</body>
+</html>
+
+    
