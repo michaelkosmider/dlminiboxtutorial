@@ -18,13 +18,27 @@
     <div class="container">
         <header class="tutorial-header">
             <h1>A Fully Annotated Autograd Tutorial</h1>
-            <p class="author-date">Author: Michael Kosmider | Published: May 7, 2025</p>
+            <p class="author-date">Author: Michael Kosmider | Published: June 11, 2025</p>
         </header>
 
         <nav class="toc">
             <h2>Table of Contents</h2>
             <ul>
-                <li><a href="#setup">Setup and the Chain Rule</a></li>
+                <li>
+                    <a href="#chainrule">The Chain Rule, Backpropagation, and Autodiff</a>
+                    <ul>
+                        <li><a href="#backpropagation">Backpropagation</a></li>
+                        <li><a href="#tensor-backpropagation">Extending Backpropagation to Tensors</a></li>
+                        <li><a href="#autodiff">Backpropagation via Autodiff System</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#implementation">The Chain Rule, Backpropagation, and Autodiff</a>
+                </li>
+                <li>
+                    <a href="#conclusion">Conclusion</a>
+                </li>
+                                
             </ul>
         </nav>
 
@@ -37,8 +51,8 @@
             <p>
                 Finally, you'll see how to use this system to train a ResNet50 on the CIFAR10 dataset! Let's get started.
             </p>
-            <section id="setup">
-                <h2>Setup and the Chain Rule</h2>
+            <section id="chainrule">
+                <h2>The Chain Rule, Backpropagation, and Autodiff</h2>
 
                 <p>
                     From the point of view of an autograd system, there are two main entities: variables and functions. A variable can be a scalar, a matrix, or a tensor of arbitrary dimensions. A function \(f\) is a mapping 
@@ -82,72 +96,70 @@
                     We're interested in developing a system that, given a computation graph, can calculate the partial derivative of any variable in the graph with respect to any of its ancestors. For this, we must study the inductively defined chain rule.
                 </p>
 
-                <section id="theorem-chain-rule">
+                
 
-                    <div class="theorem-box">
-                        <div class="theorem-title">Theorem (Inductive Chain Rule on a Computation Graph)</div>
-
-                        <p>
-                        Let \( G = (V, E) \) be a computation graph, meaning that:
-                        </p>
-
-                        <ol>
-                        <li>\(V\) is the set of all defined variables.</li>
-                        <li>For all pairs of variables \( x,y \in V\), if a function takes \(x\) as an input and outputs \(y\), then \((x,y) \in E\).</li>
-                        </ol>
-
-                        <p>
-                        Then, let \( x, z \in V \) be two variables such that \( z \) is a descendant of \( x \). That is, there exists a directed path from \( x \) to \( z \) in the computation graph. Finally, let \(c(x)\) denote the set of children of \(x\). 
-                        </p>
-
-                        <p>
-                        Then the derivative of \( z \) with respect to \( x \) is given by:
-                        </p>
-
-                        <div id="eq-chain-rule">
-                            <p style="text-align: center; font-size: 1.2em;">
-                            \[
-                            \frac{dz}{dx} = \sum_{y \in c(x)} \frac{dz}{dy} \cdot \frac{\partial y}{\partial x}
-                            \tag{1}
-                            \]
-                            </p>
-                        </div>
-
-                        <p>
-                            where we take the derivative of a variable with respect to itself to be \(1\). 
-                        </p>
-                        
-                    </div>
+                <div class="theorem-box">
+                    <div class="theorem-title">Theorem (Inductive Chain Rule on a Computation Graph)</div>
 
                     <p>
-                        
+                    Let \( G = (V, E) \) be a computation graph, meaning that:
+                    </p>
+
+                    <ol>
+                    <li>\(V\) is the set of all defined variables.</li>
+                    <li>For all pairs of variables \( x,y \in V\), if a function takes \(x\) as an input and outputs \(y\), then \((x,y) \in E\).</li>
+                    </ol>
+
+                    <p>
+                    Then, let \( x, z \in V \) be two variables such that \( z \) is a descendant of \( x \). That is, there exists a directed path from \( x \) to \( z \) in the computation graph. Finally, let \(c(x)\) denote the set of children of \(x\). 
                     </p>
 
                     <p>
-                        Let's think about what this theorem means for us. Suppose we are attemping to calculate the derivative of some variable \(z\) with respect to an ancestor \(x\), and furthermore we have <b>already calculated</b> \(\frac{dz}{dy}\) for all \(y \in c(x)\). Then all that remains in order to obtain \(\frac{dz}{dx}\) is to first calculate \(\frac{\partial y}{\partial x}\) for all children \(y \in c(x)\), and to invoke <a href="#eq-chain-rule">Equation (1)</a>. This is the heart of backpropagation. If we know the derivative of \(z\) with respect to all the children of \(x\), then the derivative of \(z\) with respect to \(x\) is straightforward to calculate.
+                    Then the derivative of \( z \) with respect to \( x \) is given by:
                     </p>
 
-                    <p>
-                        Going back to the example in <a href="#fig-attention-graph">Figure 1</a>, let's think about how we would obtain \(\frac{\partial z}{\partial x_1}\). The children of \(x\) are \(c(x) = \{y_1, z\}\), and thus the inductive chain rule gives us
-
-                        <div id="chain-rule-example">
+                    <div id="eq-chain-rule">
+                        <p style="text-align: center; font-size: 1.2em;">
                         \[
-                        \begin{align}
-                            \frac{dz}{dx_1} &= \frac{dz}{dz} \cdot \frac{\partial z}{\partial x_1} + \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_1}\tag{2} \\
-                            &= 1 \cdot y_1 + x_1 \cdot 1\\
-                            &= y_1 + x_1
-                        \end{align}
+                        \frac{dz}{dx} = \sum_{y \in c(x)} \frac{dz}{dy} \cdot \frac{\partial y}{\partial x}
+                        \tag{1}
                         \]
-                        </div>    
-                    </p >
-
-                    <div style="font-size: 0.9em; color: #555; margin-top: 0.5em; padding-left: 1em; border-left: 3px solid #ccc;">
-                        A word on notation, the difference between \(\frac{dz}{dx_1}\) and \(\frac{\partial z}{\partial x_1}\) is important. The former represents the total derivative, whereas the latter represents a direct functional dependence. 
+                        </p>
                     </div>
 
                     <p>
-                        Since this is a simple example, we were able to replace each derivative in <a href="#eq-chain-rule">Equation (2)</a> with a directly computed value, and our invokation of the inductive chain rule was unsystematic, but the example shows a glimpse of its power. In the next subsection, we'll explore the algorithm at the heart of automatic differentiation. 
+                        where we take the derivative of a variable with respect to itself to be \(1\). 
                     </p>
+                    
+                </div>
+
+                <p>
+                    Let's think about what this theorem means for us. Suppose we are attemping to calculate the derivative of some variable \(z\) with respect to an ancestor \(x\), and furthermore we have <b>already calculated</b> \(\frac{dz}{dy}\) for all \(y \in c(x)\). Then all that remains in order to obtain \(\frac{dz}{dx}\) is to first calculate \(\frac{\partial y}{\partial x}\) for all children \(y \in c(x)\), and to invoke <a href="#eq-chain-rule">Equation (1)</a>. This is the heart of backpropagation. If we know the derivative of \(z\) with respect to all the children of \(x\), then the derivative of \(z\) with respect to \(x\) is straightforward to calculate.
+                </p>
+
+                <p>
+                    Going back to the example in <a href="#fig-attention-graph">Figure 1</a>, let's think about how we would obtain \(\frac{\partial z}{\partial x_1}\). The children of \(x\) are \(c(x) = \{y_1, z\}\), and thus the inductive chain rule gives us
+
+                    <div id="chain-rule-example">
+                    \[
+                    \begin{align}
+                        \frac{dz}{dx_1} &= \frac{dz}{dz} \cdot \frac{\partial z}{\partial x_1} + \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_1}\tag{2} \\
+                        &= 1 \cdot y_1 + x_1 \cdot 1\\
+                        &= y_1 + x_1
+                    \end{align}
+                    \]
+                    </div>    
+                </p >
+
+                <div style="font-size: 0.9em; color: #555; margin-top: 0.5em; padding-left: 1em; border-left: 3px solid #ccc;">
+                    A word on notation, the difference between \(\frac{dz}{dx_1}\) and \(\frac{\partial z}{\partial x_1}\) is important. The former represents the total derivative, whereas the latter represents a direct functional dependence. 
+                </div>
+
+                <p>
+                    Since this is a simple example, we were able to replace each derivative in <a href="#eq-chain-rule">Equation (2)</a> with a directly computed value, and our invokation of the inductive chain rule was unsystematic, but the example shows a glimpse of its power. In the next subsection, we'll explore the algorithm at the heart of automatic differentiation. 
+                </p>
+
+                <section id="backpropagation">
 
                     <h3>Backpropagation</h3>
                     <p>
@@ -165,81 +177,83 @@
                 
                     <pre class="line-numbers item" style="font-size: 0.70em;"><code class="language-python">BACKPROPAGATION(Computation graph G, node z in G):
 
-    Let topo_order = TopologicalSort(G, z)
+Let topo_order = TopologicalSort(G, z)
 
-    Let computed = {dz/dz : 1}
+Let computed = {dz/dz : 1}
 
-    For each node x in topo_order (excluding z):
+For each node x in topo_order (excluding z):
 
-        Let dz/dx = 0
+    Let dz/dx = 0
 
-        # Invoke Inductive Chain Rule
-        For each child y of x:
-            Let partial_x = calculate(∂y/∂x)
-            Let total_y = computed.get(dz/dy)
-            dz/dx += total_y * partial_x
+    # Invoke Inductive Chain Rule
+    For each child y of x:
+        Let partial_x = calculate(∂y/∂x)
+        Let total_y = computed.get(dz/dy)
+        dz/dx += total_y * partial_x
 
-        insert dz/dx into computed</code></pre>
-    
+    insert dz/dx into computed</code></pre>
+        
 
-                <p>
-                    Returning to the computation graph in <a href="#fig-attention-graph">Figure 1</a>, the ordering returned by topological sort might be \((z, y_2, y_1, x_2, x_1, x_3, x_4)\). Other orderings are possible too, as multiple orderings satisfy the dependencies in this case. From here, the loop on line 7 would proceed:
-                </p>
+                    <p>
+                        Returning to the computation graph in <a href="#fig-attention-graph">Figure 1</a>, the ordering returned by topological sort might be \((z, y_2, y_1, x_2, x_1, x_3, x_4)\). Other orderings are possible too, as multiple orderings satisfy the dependencies in this case. From here, the loop on line 7 would proceed:
+                    </p>
 
-                <ol>
+                    <ol>
 
-                    <li>
-                        <p>current node: \(y_2\)</p>
-                        <p>computed = \(\{\frac{dz}{dz} : 1\}\) </p>
-                        <p>calculate: \(\frac{\partial z}{\partial y_2} = 1\) </p>
-                        <p>invoke chain rule: \(\frac{dz}{dy_2} = \frac{dz}{dz} \cdot \frac{\partial z}{\partial y_2} = 1 \cdot 1 = 1\)</p>
-                    </li>
+                        <li>
+                            <p>current node: \(y_2\)</p>
+                            <p>computed = \(\{\frac{dz}{dz} : 1\}\) </p>
+                            <p>calculate: \(\frac{\partial z}{\partial y_2} = 1\) </p>
+                            <p>invoke chain rule: \(\frac{dz}{dy_2} = \frac{dz}{dz} \cdot \frac{\partial z}{\partial y_2} = 1 \cdot 1 = 1\)</p>
+                        </li>
 
-                    <li>
-                        <p>current node: \(y_1\)</p>
-                        <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1\}\) </p>
-                        <p>calculate: \(\frac{\partial z}{\partial y_1} = x_1\) </p>
-                        <p>invoke chain rule: \(\frac{dz}{dy_1} = \frac{dz}{dz} \cdot \frac{\partial z}{\partial y_1} = 1 \cdot x_1 = x_1\)</p>
+                        <li>
+                            <p>current node: \(y_1\)</p>
+                            <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1\}\) </p>
+                            <p>calculate: \(\frac{\partial z}{\partial y_1} = x_1\) </p>
+                            <p>invoke chain rule: \(\frac{dz}{dy_1} = \frac{dz}{dz} \cdot \frac{\partial z}{\partial y_1} = 1 \cdot x_1 = x_1\)</p>
 
-                    </li>
+                        </li>
 
-                    <li>
-                        <p>current node: \(x_2\)</p>
-                        <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1\}\) </p>
-                        <p>calculate: \(\frac{\partial y_1}{\partial x_2} = 1\) </p>
-                        <p>invoke chain rule: \(\frac{dz}{dx_2} = \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial dx_2} =  x_1 \cdot 1 = x_1\)</p>
+                        <li>
+                            <p>current node: \(x_2\)</p>
+                            <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1\}\) </p>
+                            <p>calculate: \(\frac{\partial y_1}{\partial x_2} = 1\) </p>
+                            <p>invoke chain rule: \(\frac{dz}{dx_2} = \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial dx_2} =  x_1 \cdot 1 = x_1\)</p>
 
-                    </li>
+                        </li>
 
-                    <li>
-                        <p>current node: \(x_1\)</p>
-                        <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1\}\) </p>
-                        <p>calculate: \(\frac{\partial z}{\partial x_1} = y_1\) and \(\frac{\partial y_1}{\partial x_1} = 1\) </p>
-                        <p>invoke chain rule: \(\frac{dz}{dx_1} = \frac{dz}{dz} \cdot \frac{\partial z}{\partial x_1} + \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_1} =  1 \cdot y_1 + x_1 \cdot 1 = y_1 + x_1\)</p>
-                    </li>
+                        <li>
+                            <p>current node: \(x_1\)</p>
+                            <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1\}\) </p>
+                            <p>calculate: \(\frac{\partial z}{\partial x_1} = y_1\) and \(\frac{\partial y_1}{\partial x_1} = 1\) </p>
+                            <p>invoke chain rule: \(\frac{dz}{dx_1} = \frac{dz}{dz} \cdot \frac{\partial z}{\partial x_1} + \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_1} =  1 \cdot y_1 + x_1 \cdot 1 = y_1 + x_1\)</p>
+                        </li>
 
-                    <li>
-                        <p>current node: \(x_3\)</p>
-                        <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1, \frac{dz}{dx_1} : y_1 + x_1\}\) </p>
-                        <p>calculate:\(\frac{\partial y_1}{\partial x_3} = 1\) </p>
-                        <p>invoke chain rule: \(\frac{dz}{dx_3} = \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_3} =  x_1 \cdot 1 = x_1\)</p>
-                    </li>
+                        <li>
+                            <p>current node: \(x_3\)</p>
+                            <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1, \frac{dz}{dx_1} : y_1 + x_1\}\) </p>
+                            <p>calculate:\(\frac{\partial y_1}{\partial x_3} = 1\) </p>
+                            <p>invoke chain rule: \(\frac{dz}{dx_3} = \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_3} =  x_1 \cdot 1 = x_1\)</p>
+                        </li>
 
-                    <li>
-                        <p>current node: \(x_4\)</p>
-                        <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1, \frac{dz}{dx_1} : y_1 + x_1, \frac{dz}{dx_3} : x_1\}\) </p>
-                        <p>calculate: \(\frac{\partial y_1}{\partial x_4} = 1\) and \(\frac{\partial y_2}{\partial x_4} = 2x_4\) </p>
-                        <p>invoke chain rule: \(\frac{dz}{dx_4} = \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_4} + \frac{dz}{dy_2} \cdot \frac{\partial y_2}{\partial x_4} =  x_1 \cdot 1 + 1 \cdot 2x_4 = x_1 + 2x_4\)</p>
-                    </li>
+                        <li>
+                            <p>current node: \(x_4\)</p>
+                            <p>computed = \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1, \frac{dz}{dx_1} : y_1 + x_1, \frac{dz}{dx_3} : x_1\}\) </p>
+                            <p>calculate: \(\frac{\partial y_1}{\partial x_4} = 1\) and \(\frac{\partial y_2}{\partial x_4} = 2x_4\) </p>
+                            <p>invoke chain rule: \(\frac{dz}{dx_4} = \frac{dz}{dy_1} \cdot \frac{\partial y_1}{\partial x_4} + \frac{dz}{dy_2} \cdot \frac{\partial y_2}{\partial x_4} =  x_1 \cdot 1 + 1 \cdot 2x_4 = x_1 + 2x_4\)</p>
+                        </li>
 
-                    <li>
-                        Final output: \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1, \frac{dz}{dx_1} : y_1 + x_1, \frac{dz}{dx_3} : x_1, \frac{dz}{dx_4} : x_1 + 2x_4 \}\) 
-                    </li>
-                </ol>
+                        <li>
+                            Final output: \(\{\frac{dz}{dz} : 1, \frac{dz}{dy_2} : 1, \frac{dz}{dy_1} : x_1, \frac{dz}{dx_2} : x_1, \frac{dz}{dx_1} : y_1 + x_1, \frac{dz}{dx_3} : x_1, \frac{dz}{dx_4} : x_1 + 2x_4 \}\) 
+                        </li>
+                    </ol>
 
-                <p>
-                    At each iteration of backpropagation, for the current node \(x\), we invoke the chain rule using the previously calculated total derivatives of \(z\) with respect to children of \(x\), combined with the partial derivatives of children of \(x\) with respect to itself. At each iteration, the dictionary of computed total derivatives grows by one. 
-                </p>
+                    <p>
+                        At each iteration of backpropagation, for the current node \(x\), we invoke the chain rule using the previously calculated total derivatives of \(z\) with respect to children of \(x\), combined with the newly calculated partial derivatives of children of \(x\) with respect to \(x\) itself. At each iteration, the dictionary of computed total derivatives grows by one. 
+                    </p>
+                </section>
+                <section id="tensor-backpropagation">
 
                 <h3>Extending Backpropagation to Tensors</h3>
 
@@ -431,6 +445,7 @@
                     <p>
                         This is a very exciting result, and hints at how autodiff systems actually make computations. The pseudocode backpropagation algorithm I showed earlier is theoretically sound, and it is the most general form of backpropagation where every edge is explicitly present in the computation graph, but it is not how backpropagation is implemented in practice. Instead, autodiff uses formulas like those shown above to apply the scalar chain rule "in bulk". The computation graph then does not need to keep track of every edge and scalar entry in every tensor. Our autodiff system will express the example in this section like so:
                     </p>
+                    
                     <p class="math-scrollable">
                         \[
                         \begin{array}{ccccccccc}
@@ -447,14 +462,25 @@
                                 \end{bmatrix}\) 
 
                         , and finally knowing \(C = \text{matmul}(A,B)\), it will apply <a href="#matmul-backwards">Equations (3)</a> thus obtaining \(\frac{dz}{dA}\) and \(\frac{dz}{dB}\).
-                     </p>   
+                    </p>   
 
-                     <p>
-                        More generally, functions in an autodiff system take lists of tensors as input and produce a tensor as output. If autodiff knows the derivative of a scalar \(z\) with respect to a function \(f\)'s output (also known as the upstream gradient of \(f\)), then autodiff uses what's called the "backward function" of \(f\) to compute the derivative of \(z\) with respect to the \(f\)'s inputs. This backward function is typically a clever result that implicitly invokes the inductive chain rule upon all scalars involved.
+                    <p>
+                        More generally from the point of view of our autodiff system, any function \(f\) takes a list of tensors \(X_1, X_2, \ldots X_k\) as input and produces a tensor \(Y\) as output, like so: 
                     </p>
 
                     <p>
-                        This approach to autodiff introduces a problem. It is also possible for tensors to be used as input to more than one function. Suppose we augmented the example by letting 
+                        \[f(X_1, X_2, \ldots X_k) = Y.\]
+                    </p>
+
+                    <p>
+                        If autodiff knows the derivative of a scalar \(z\) with respect to \(f\)'s output (also known as the upstream gradient, denoted \(\frac{dz}{dY}\)), then autodiff uses what's called the "backward function" of \(f\) to compute the derivative of \(z\) with respect to each of \(f\)'s inputs. Every function \(f\) in the system must have a backward function implemented. This backward function is typically a clever result that implicitly invokes the inductive chain rule upon all scalars in the input tensors. In the example above, the backwards function receives \(\frac{dz}{dC}\) as the upstream gradient and invokes <a href="#matmul-backwards">Equations (3)</a> to calculate the derivative of \(z\) with respect to both \(A\) and \(B\).
+                    </p>
+
+                    <p>
+                        needs more explanations here before transitioning
+                    </p>
+                    <p>
+                        This approach to autodiff introduces a problem. The issue is that tensors can be used as input to more than just one function. Suppose we augmented the example by letting 
                         
                             \(
                                 D = 
@@ -471,28 +497,31 @@
                         \begin{array}{ccccccccc}
                         A& \searrow & & &&\\
                         B & \rightarrow & \text{matmul} & \rightarrow & C & \searrow & \\
-                        & \searrow&&&&&\text{add} & \rightarrow & W & \text{sum} & \rightarrow & z\\
+                        & \searrow&&&&&\text{add} & \rightarrow & W & \rightarrow& \text{sum} & \rightarrow & z\\
                         D & \rightarrow &\text{add} & \rightarrow &E &\nearrow \\ 
                         \end{array}
                         \]
                     </p>
 
                     <p>
-                        Now we can no longer apply <a href="#matmul-backwards">Equations (3)</a> in order to obtain \(\frac{dz}{dB}\) because \(z\) can no longer be expressed as a direct function of just \(C\). 
+                        Now \(B\) is an input to both matmul and add. So autodiff as described so far, given upstream gradients \(\frac{dz}{dC}\) and \(\frac{dz}{dE}\), would calculate two different values for \(\frac{dz}{dB}\), coming from matmul backwards and add backwards. Let's call these \(G_{BC}\) and \(G_{BE}\), respectively. What should autodiff do now with these values?
                     </p>
 
+
+
                     <p>
-                        Looking at it from a different angle, if we let \(\frac{dz}{dB} = A^{\mathsf{T}} \times \frac{dz}{dC}\) as before, we would no longer be correctly invoking the inductive chain rule. That is because the scalars in \(B\) have children not only in \(C\), but also in \(E\). Remember, the inductive chain rule dictates that for any scalar \(b_{ij} \in B\), 
+                        While neither \(G_{BC} = \frac{dz}{dB}\) nor \(G_{BE} = \frac{dz}{dB}\), it actually turns out that \(\frac{dz}{dB} = G_{BC} + G_{BE}\), which is a result that follows from the inductive chain rule. Let's see why.
+                        Remember, the inductive chain rule dictates that for any scalar \(b_{ij} \in B\), 
                     </p>
 
                     <p>
                         \[
-                        \frac{dz}{db_{ij}} = \sum_{y \in c(b_{ij})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{ij}}
+                        \frac{dz}{db_{ij}} = \sum_{y \in c(b_{ij})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{ij}},
                         \]
                     </p>
 
                     <p>
-                        Which we can break down further by letting \(c_{C}(b_{ij})\) denote the children of \(b_{ij}\) that are in \(C\), and similarly defining \(c_{E}(b_{ij})\) 
+                        which we can break down further by letting \(c_{C}(b_{ij})\) denote the children of \(b_{ij}\) that are in \(C\), and similarly defining \(c_{E}(b_{ij})\), 
                     </p>
 
                     <p>
@@ -502,81 +531,373 @@
                         \]
                     </p>
 
-                    <p>
-                        In other words, if we let \(\frac{dz}{dB} = A^{\mathsf{T}} \times \frac{dz}{dC}\), then each entry \(\frac{dz}{db_{ij}}\) in \(\frac{dz}{dB}\) would be of the form 
+                    </p>
+                        Recalling that \( G_{BC} = A^{\mathsf{T}} \times \frac{dz}{dC}\),
                     </p>
 
                     <p>
                         \[
-                        \frac{dz}{db_{ij}} = \sum_{y \in c_{E}(b_{ij})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{ij}}.
+                            \begin{align}
+
+                                A^\mathsf{T} \times \frac{dz}{dC} 
+
+                                &= 
+                                \begin{bmatrix}
+                                    a_{11} & a_{21} \\
+                                    a_{12} & a_{22} 
+                                \end{bmatrix}
+
+                                \times
+
+                                \begin{bmatrix}
+                                    \frac{dz}{dc_{11}} &  \frac{dz}{dc_{12}} \\
+                                    \frac{dz}{dc_{21}} &  \frac{dz}{dc_{22}}
+                                \end{bmatrix}\\
+
+                                &= 
+                                \begin{bmatrix} 
+                                    \frac{dz}{dc_{11}} \cdot a_{11} + \frac{dz}{dc_{21}} \cdot a_{21} 
+                                    
+                                    & \frac{dz}{dc_{12}} \cdot a_{11} + \frac{dz}{dc_{22}} \cdot a_{21} \\
+
+                                    \frac{dz}{dc_{11}} \cdot a_{12} + \frac{dz}{dc_{21}} \cdot a_{22} 
+                                    
+                                    & \frac{dz}{dc_{12}} \cdot a_{12} + \frac{dz}{dc_{22}} \cdot a_{22}
+                                \end{bmatrix}\\                              
+
+                                &= 
+                                \begin{bmatrix} 
+                                    \frac{dz}{dc_{11}} \cdot \frac{\partial c_{11}}{\partial b_{11}} + \frac{dz}{dc_{21}} \cdot \frac{\partial c_{21}}{\partial b_{11}} 
+                                    
+                                    & \frac{dz}{dc_{12}} \cdot \frac{\partial c_{12}}{\partial b_{12}} + \frac{dz}{dc_{22}} \cdot \frac{\partial c_{22}}{\partial b_{12}} \\
+
+                                    \frac{dz}{dc_{11}} \cdot \frac{\partial c_{11}}{\partial b_{21}} + \frac{dz}{dc_{21}} \cdot \frac{\partial c_{21}}{\partial b_{21}} 
+                                    
+                                    & \frac{dz}{dc_{12}} \cdot \frac{\partial c_{12}}{\partial b_{22}} + \frac{dz}{dc_{22}} \cdot \frac{\partial c_{22}}{\partial b_{22}}
+                                \end{bmatrix}\\         
+
+                                &= 
+                                \begin{bmatrix}
+                                    \sum_{y \in c_{C}(b_{11})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{11}} 
+                                    &  
+                                    \sum_{y \in c_{C}(b_{12})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{12}} \\
+
+                                    \sum_{y \in c_{C}(b_{21})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{21}} 
+                                    &  
+                                    \sum_{y \in c_{C}(b_{22})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{22}} \\
+                                \end{bmatrix}\\
+
+                            \end{align}
                         \]
                     </p>
 
                     <p>
-                        which is only the first half of the summation! But this also shows what the next step must be.
+                        and so the \(ij\) entry of \(G_{BC}\) is
                     </p>
+
+                    <p>
+                        \[
+                        (G_{BC})_{ij} = \sum_{y \in c_{C}(b_{ij})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{ij}} .
+                        \]
+                    </p>
+
+                    <p>
+                        So we can see that \((G_{BC})_{ij}\) is exactly the part of the sum in \(\frac{dz}{db_{ij}}\) that corresponds to the children of \(b_{ij}\) in \(C\). Similarly, you could conclude that 
+                    </p>
+
+                    <p>
+                        \[
+                        (G_{BE})_{ij} = \sum_{y \in c_{E}(b_{ij})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{ij}},
+                        \]
+                    </p>
+
+                    <p>
+                        and finally
+                    </p>
+
+                    <p>
+                        \[
+                        
+                        (G_{BC})_{ij} + (G_{BE})_{ij} = \sum_{y \in c_{C}(b_{ij})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{ij}} + \sum_{y \in c_{E}(b_{ij})} \frac{dz}{dy} \cdot \frac{\partial y}{\partial b_{ij}} = \frac{z}{db_{ij}},
+                        \]
+                    </p>
+
+                    <p>thus establishing \(\frac{dz}{dB} = G_{BC} + G_{BE}\).</p>
+
+                    <p>
+                        This result generalizes beyond just this example. Suppose some tensor \(X\) is the input to several functions, so 
+                    </p>
+
+                    <p>
+                        \[
+                            \begin{align}
+
+                                f_1(\ldots, X, \ldots) &= Y_1,\\
+                                f_k(\ldots, X, \ldots) &= Y_2,\\
+                                \vdots\\
+                                f_k(\ldots, X,\ldots) &= Y_k,\\
+                            \end{align}
+                        \]
+                    </p>
+
+                    <p>
+                        and \(\frac{dz}{dY_1}, \frac{dz}{dY_2}, \ldots, \frac{dz}{dY_k}\) have already been calculated. Then autodiff will invoke the backwards function for each of \(f_1, f_2, \ldots, f_k\), thus obtaining \(G_{XY_1}, G_{XY_2}, \ldots, G_{XY_k}\), and finally set \(\frac{dz}{dX} = G_{XY_1} + G_{XY_2} + \ldots + G_{XY_k}\). Remember, \((G_{XY_n})_{ij}\) is the portion of the summation of \(\frac{dz}{dX_{ij}}\) corresponding to the children of \(X\) present in \(Y_n\). 
+                    </p>
+
                 </section>
-                <!-- <p class="item">
-                    from a fixed-size list of variables to a single variable. The variable at index \(i\) must come from a pre-defined set, and the order of the input list matters. For example, \(V_2\) might always have to be a scalar, and \(V_4\) might always be a two dimensional tensor with \(8\) columns (but any number of rows). The set of acceptable input lists of variables is the domain of \(f\), and it the domain depends on how the function is defined.
-                </p>
-                <p class="item">
-                    Variables and functions can be composed in the sense that the output of a function can be used as input to another function, and the composition can be viewed as a computation graph, where the nodes are variables and the functions are edges. Let's look at a typical example: a linear layer followed by a ReLU activation.
+
+                <section id="autodiff">
+                    <h3>Backpropagation via Autodiff System</h3>
+
+                    <p>
+                        Finally, we have all the theory needed for the automatic differentiation system that we will implement. 
+                    </p>
+
+                    <div class="theorem-box">
+                        <div class="theorem-title">Autodiff System Formalization</div>
+
+                        <p>
+                            Suppose \( G = (V, E) \) is a computation graph such that
+                        </p>
+
+                        <ol>
+                            <li>\(V\) is a set of tensors.</li>
+                            <li>For any pair \( X,Y \in V\), if a function takes \(X\) as an input and outputs \(Y\), then \((X,Y) \in E\).</li>
+                        </ol>
+
+                        <p>
+                            Furthermore, let \( z \in V \) be a \(0-\text{dimensional}\) tensor (i.e., \(z\) is a scalar). 
+                        </p>
+
+                        <p>
+                            Then the autodiff systems calculates \(\frac{dz}{dX}\) for all ancestors \(X\) of \(z\) by
+                        </p>
+
+                        <ol>
+                            <li>
+                                Obtaining an ordering \(z, X_1, X_2, \ldots, X_N\) of all ancestors via topological sort.
+                            </li>
+                            <li>
+                                For each tensor \(X\) in the ordering, calling its backwards function using the already computed upstream gradient \(\frac{dz}{dX}\), where
+                                <ul>
+                                    <li>
+                                        \(\frac{dz}{dX} = G_{XY_1} + G_{XY_2} + \ldots + G_{XY_k}, \) where \(Y_1, Y_2, \ldots, Y_N\) are the direct children of \(X\), which therefore appeared before \(X\) in the ordering and already had their backwards functions called. This means that  \(G_{XY_1}, G_{XY_2}, \ldots, G_{XY_k} \) have already been computed and \(\frac{dz}{dX}\) is available before \(X\) calls its own backwards function. 
+                                    </li>
+                                    <li>
+                                        The backwards function of \(z\) requires no upstream gradient.
+                                    </li>
+                                    <!-- <li>
+                                        If \(X_{i_1}, X_{i_2}, \ldots, X_{i_p}\) are the direct parents of \(z\) and so \(z = f(X_{i_1}, X_{i_2}, \ldots, X_{i_p})\), then the backwards function of \(z\) requires no upstream gradient.
+                                    </li> -->
+                                </ul>
+                            </li>
+
+                        </ol>
+
+                    </div>
+                </section>
+
+            </section>
+
+            <section id="softmax-ce">
+                <h2>ReLU, Softmax and Cross-Entropy Loss</h2>
+                <p>
+                    Before diving into the autodiff system implementation, I'll introduce 
                 </p>
                 <p class="math-scrollable">
                     \[
                     \begin{array}{ccccccccc}
-                      X & \searrow &&&&&&&\\
-                      W & \rightarrow & \text{Linear} & \rightarrow & Z & \rightarrow & \text{ReLU} & \rightarrow & A\\
-                      b & \nearrow &&&&&&&\\
+                        X & \searrow &&&&&&&\\
+                        W & \rightarrow & \text{Linear} & \rightarrow & Z & \rightarrow & \text{ReLU} & \rightarrow & A\\
+                        b & \nearrow &&&&&&&\\
                     \end{array}
                     \]
                 </p>
-                <p>
-                    where \(X \in \mathbb{R}^{N \times d}\),&nbsp \(W \in \mathbb{R}^{d \times c}\),&nbsp \(b \in \mathbb{R}^c\),&nbsp and \(Z, A \in \mathbb{R}^{N \times c}\), where \(b\) and \(c\) are fixed integers, whereas \(N\) is not fixed and is the "batch size".
-                </p>
-                <p>
-                    Functions can be composed in any way so long as there is no cycle in the computation graph. The computation graph is what's called a directed acyclic graph.
-                </p>
-            </section id="Autograd and the Chain Rule">
-                <h2>Backpropagation and the Chain Rule</h2>
-
-                <p>
-                    The goal of autograd is as follows: Given a scalar variable \(s\) somewhere in a computation graph, and for each ancestor variable \(X\), calculate the gradient \(\frac{\partial s}{\partial X}\). The gradient \(\frac{\partial s}{\partial X}\) is always the same shape as \(X\) itself, and if \(X\) is a tensor, then each entry in the gradient is the partial derivative of \(s\) with respect to that entry in \(X\).  
-                </p>
-
-                <p>
-                    Let's continue the example from above to illustrate this concept. Extend the computation graph starting from \(A\), to also include a softmax function and a cross entropy function. 
-                </p>
-        
                 <p class="math-scrollable">
                     \[
                     \begin{array}{ccccccccc}
-                       &&&&y& \searrow & & &&\\
-                      A & \rightarrow & \text{softmax} & \rightarrow & P & \rightarrow & \text{cross entropy} & \rightarrow & L\\
+                        &&&&y& \searrow & & &&\\
+                        A & \rightarrow & \text{softmax} & \rightarrow & P & \rightarrow & \text{cross entropy} & \rightarrow & L\\
                     \end{array}
                     \]
                 </p>
+            </section>
+
+            <section id="implementation">
+                <h2>Autodiff Implementation</h2>
+
                 <p>
-                    You might know that cross entropy is a function that takes a batch of probability predictions \(P \in \mathbb{R}^{N \times c}\), as well as a batch of corresponding ground truths \(y\), and produces a scalar loss \(L\) which is the average loss over the batch. Now we might for example be interested in calculating \(\frac{\partial L}{\partial W}\), which is the gradient of \(L\) with respect to \(W\). It has the exact same shape as \(W\) itself, and the \(ij\)-th entry is \(\frac{\partial L}{\partial W_{ij}}\). 
+                    With the autodiff algorithm formalized, we will now implement it on top of NumPy. In order to represent variables (tensors) in the context of a computation graph, we extend the nd.array class to include a "Node" attribute. It is through these node objects that the computation graph will be constructed. 
                 </p>
+
+                <pre class="line-numbers item" style="font-size: 0.70em;"><code class="language-python">class Variable(np.ndarray):
+    def __new__(cls, input_array, keep_grad=False):
+        # Input array is an already formed ndarray instance
+        # We first cast to be our class type
+        obj = np.asarray(input_array).view(cls)
+
+        # Add the Node attribute to the created instance
+        obj.node = Node(keep_grad=keep_grad)
+
+        # Finally, we must return the newly created object:
+        return obj
+
+    def __array_finalize__(self, obj):
+        if obj is None:
+            return
+    
+# Creating a Variable
+X = Variable(np.array([1,2,3,4,5]))</code></pre>
+
                 <p>
-                    Autograd uses backpropagation in order to calculate \(\frac{\partial L}{\partial W}\), and we will go into a lot of detail about this example because it's foundational in the study of neural networks, but for now we'll return to calculating \(\frac{\partial s}{\partial X}\) to see how backpropagation works in a more general sense (and in practice). 
+                    In order to create Variable instances, already existing numpy arrays are casted, which equips them with the Node attribute. Variable instances can either be created directly like in the example, or be the output of a function. We will need to define every single function used in the system (addition, ReLU, softmax, matmul etc.), as well as their corresponding backwards functions. 
                 </p>
+
                 <p>
-                    Let \(I(X)\) denote the set of functions \(f\) to which \(X\) is an input and such that \(f\) is an edge in a path from \(X\) to \(s\). It might look something like this:
+                    I'll introduce the Node class and follow up by explaining each element of it. 
                 </p>
+
+                <pre class="line-numbers item" style="font-size: 0.70em;"><code class="language-python">class Node:
+    def __init__(self, propagate_grad=False, keep_grad=False):
+
+        self.grad = None
+        self.keep_grad = keep_grad
+        self.propagate_grad = propagate_grad
+
+    def propagate(self):
+
+        # Obtain a list of input gradients, corresponding to the list of inputs.
+        input_grads = self.backward_fn(
+            params=self.backward_fn_params, upstream=self.grad
+        )
+
+        # Accumulate grads in input_nodes.
+        for input, input_grad in zip(self.input_nodes, input_grads):
+            if input.grad is None:
+                input.grad = input_grad
+            else:
+                input.grad += input_grad
+
+        # Disconnect the node from the graph.
+        if self.propagate_grad:
+            del self.input_nodes
+            del self.backward_fn_params
+            del self.backward_fn
+            del self.topo_visited
+            self.propagate_grad = False
+
+        if not self.keep_grad:
+            self.grad = None
+
+    # Connects self to computation graph. Used by forward method of a function/module.
+    def connect(self, input_nodes, backward_fn, backward_fn_params):
+        self.propagate_grad = True if len(input_nodes) > 0 else False
+
+        if self.propagate_grad:
+            self.input_nodes = input_nodes
+            self.backward_fn_params = backward_fn_params
+            self.backward_fn = backward_fn
+            self.topo_visited = False
+
+    # The calling node must have backward_fn that accepts None as upstream. The Variable that this node represents must be a scalar.
+    def backward(self):
+
+        self.ordering = []
+        toposort_nodes(self, self.ordering)
+
+        while self.ordering:
+            self.ordering.pop().propagate()
+        del self.ordering
+
+    def clear_grad(self):
+        self.grad = None
+
+
+def toposort_nodes(node, ordering):
+    for input_node in node.input_nodes:
+        if not node.topo_visited and input_node.propagate_grad:
+            toposort_nodes(input_node, ordering)
+
+    node.topo_visited = True
+    ordering.append(node)</code></pre>
+
+                <p>
+                    For the rest of this section, assume that \(z\) is some scalar variable in the computation graph, and that our goal is to calculate the derivative of \(z\) with respect to each of its ancestors in the graph. For every variable \(X\), the .grad attribute of its Node represents \(\frac{dz}{dX}\). For now, ignore keep_grad and propagate_grad, as these are used for optimizations later on. 
+                </p>
+
+                <p>
+                    Whenever a new variable \(Y\) is created through a function \(f(X_1,X_2, \ldots, X_k)\), then the function itself calls the connect method upon the Node attribute of \(Y\). The connect method adds the nodes of \(X_1,X_2, \ldots, X_k\) to the list input_nodes, thus adding \(Y\) to the computation graph. Furthermore, the connect method equips \(Y\)'s node with the correct backward function and the parameters needed in order to execute the backward function, with the exception of the upstream gradient. Let's revisit the computation graph below as a concrete example, where \(C = \text{matmul}(A, B)\), along with the implementation of the matrix multiplication function. 
+                </p>
+
                 <p class="math-scrollable">
                     \[
-                    \begin{array}{}
-                        &\nearrow&f_{1}&\rightarrow& Y_1 &\searrow\\
-                        X&\rightarrow&f_{2}&\rightarrow& Y_2 &\rightarrow & f_{4} & \rightarrow s\\
-                        &\searrow&f_{3}&\rightarrow& Y_3& \\
+                    \begin{array}{ccccccccc}
+                    A& \searrow & & &&\\
+                    B & \rightarrow & \text{matmul} & \rightarrow & C & \rightarrow & \text{sum} & \rightarrow & z\\
                     \end{array}
                     \]
                 </p>
+
+                <pre class="line-numbers item" style="font-size: 0.70em;"><code class="language-python">def matmul(A, B):
+    # Compute output of module.
+    output = np.matmul(A, B)
+
+    # Create node in computation graph.
+    output.node = Node()
+
+    input_nodes = []
+    backward_fn_params = {}
+
+    if A.node.propagate_grad or A.node.keep_grad:
+        input_nodes.append(A.node)
+        backward_fn_params["B"] = B
+
+    if B.node.propagate_grad or B.node.keep_grad:
+        input_nodes.append(B.node)
+        backward_fn_params["A"] = A
+
+    output.node.connect(input_nodes, matmul_backward, backward_fn_params)
+
+    return output
+
+
+# Backward definition.
+def matmul_backward(params, upstream=None):
+    grads = []
+
+    # dA
+    if "B" in params:
+        grads.append(upstream @ params["B"].T)
+
+    # dB
+    if "A" in params:
+        grads.append(params["A"].T @ upstream)
+
+    return grads</code></pre>
+
+
                 <p>
-                    in which case \(I(X)\) is the set \(\{f_1, f_2\}\). Suppose furthermore that for each function \(f \in I(X)\), \(O\) is the output of \(f\) and the gradient \(\frac{\partial s}{\partial O}\) is already known. So in this case, we know 
-                </p> -->
+                    As you can see, the underlying np.matmul is used to actually calculate \(C\), but then the connect method is called in order to add \(C\) to the computation graph. That's how we will implement every function, by using its underlying NumPy implementation, but handling the autodiff elements ourselves. 
+                </p>
+
+                <p>
+                    Propagate is the method that actually calls the backwards function for a variable. Suppose that the Node of \(C\) already has \(\frac{dz}{dC}\) inside of its .grad attribute, meaning its upstream gradient has been calculated. Then propagate calls the backwards function of matmul, and calculates \(G_{AC} = \frac{dz}{dC} \times B^{\mathsf{T}}\) and \(G_{BC} = A^{\mathsf{T}} \times \frac{dz}{dC}\), so that input_grads is the list \([G_{AC}, G_{BC}]\). The goal is now for the .grad attributes of \(A\) and \(B\) to contain \(\frac{dz}{dA}\) and \(\frac{dz}{dB}\), and what happens on line 16 is \(\frac{dz}{dA} = G_{AC}\) and \(\frac{dz}{dB} = G_{BC}\). 
+                </p>
+
+                <p>
+                    The backward method is called only once, upon the node of \(z\) itself. This method immediately triggers topological sort on the computation graph in order to get an ordering of \(z\)'s ancestors. By calling propagate upon each Node in the ordering one at a time, the system calculates every gradient.
+                </p>
+
+                <p>
+                    With the overall system explained, we can move on to two optimizations made: the keep_grad/propagate_grad attributes, and disconnecting Nodes from the graph. As a user of the system, you can specify keep_grad = False for any variable whose gradient you are not interested in keeping. Every functions checks which of its input variables have keep_grad = True, or whether the input variables have ancestors with keep_grad = True in which case propagate_grad = True. This logic prevents the system from needlessly calculating gradients. The disconnect logic inside propagate removes the Node's references to the backwards parameters, readying them for deletion. These backwards parameters are expensive to keep around.
+                </p>
+
+            </section>
+
+            <section id="conclusion">
+                <p>
+                    This concludes the tutorial! We started with the inductive chain rule for scalars, the theorem at the heart of backpropagation. We then saw how more compactly represent computation graphs by allowing functions to have tensor inputs and outputs. Finally, we saw how to implement backpropagation via an autodiff system that uses backwards functions, implicitly invoking the chain rule. With this tutorial understood, head on over to the <a href="">documentation</a> website, where you can see how each function is implemented, and which introduces two new concepts: modules and optimizers for model training. 
+                </p>
             </section>
 
         </main>
@@ -605,3 +926,67 @@
 
 </body>
 </html>
+
+<pre class="line-numbers item" style="font-size: 0.70em;"><code class="language-python"></code></pre>
+
+<!-- <p class="item">
+    from a fixed-size list of variables to a single variable. The variable at index \(i\) must come from a pre-defined set, and the order of the input list matters. For example, \(V_2\) might always have to be a scalar, and \(V_4\) might always be a two dimensional tensor with \(8\) columns (but any number of rows). The set of acceptable input lists of variables is the domain of \(f\), and it the domain depends on how the function is defined.
+</p>
+<p class="item">
+    Variables and functions can be composed in the sense that the output of a function can be used as input to another function, and the composition can be viewed as a computation graph, where the nodes are variables and the functions are edges. Let's look at a typical example: a linear layer followed by a ReLU activation.
+</p>
+<p class="math-scrollable">
+    \[
+    \begin{array}{ccccccccc}
+        X & \searrow &&&&&&&\\
+        W & \rightarrow & \text{Linear} & \rightarrow & Z & \rightarrow & \text{ReLU} & \rightarrow & A\\
+        b & \nearrow &&&&&&&\\
+    \end{array}
+    \]
+</p>
+<p>
+    where \(X \in \mathbb{R}^{N \times d}\),&nbsp \(W \in \mathbb{R}^{d \times c}\),&nbsp \(b \in \mathbb{R}^c\),&nbsp and \(Z, A \in \mathbb{R}^{N \times c}\), where \(b\) and \(c\) are fixed integers, whereas \(N\) is not fixed and is the "batch size".
+</p>
+<p>
+    Functions can be composed in any way so long as there is no cycle in the computation graph. The computation graph is what's called a directed acyclic graph.
+</p>
+</section id="Autograd and the Chain Rule">
+<h2>Backpropagation and the Chain Rule</h2>
+
+<p>
+    The goal of autograd is as follows: Given a scalar variable \(s\) somewhere in a computation graph, and for each ancestor variable \(X\), calculate the gradient \(\frac{\partial s}{\partial X}\). The gradient \(\frac{\partial s}{\partial X}\) is always the same shape as \(X\) itself, and if \(X\) is a tensor, then each entry in the gradient is the partial derivative of \(s\) with respect to that entry in \(X\).  
+</p>
+
+<p>
+    Let's continue the example from above to illustrate this concept. Extend the computation graph starting from \(A\), to also include a softmax function and a cross entropy function. 
+</p>
+
+<p class="math-scrollable">
+    \[
+    \begin{array}{ccccccccc}
+        &&&&y& \searrow & & &&\\
+        A & \rightarrow & \text{softmax} & \rightarrow & P & \rightarrow & \text{cross entropy} & \rightarrow & L\\
+    \end{array}
+    \]
+</p>
+<p>
+    You might know that cross entropy is a function that takes a batch of probability predictions \(P \in \mathbb{R}^{N \times c}\), as well as a batch of corresponding ground truths \(y\), and produces a scalar loss \(L\) which is the average loss over the batch. Now we might for example be interested in calculating \(\frac{\partial L}{\partial W}\), which is the gradient of \(L\) with respect to \(W\). It has the exact same shape as \(W\) itself, and the \(ij\)-th entry is \(\frac{\partial L}{\partial W_{ij}}\). 
+</p>
+<p>
+    Autograd uses backpropagation in order to calculate \(\frac{\partial L}{\partial W}\), and we will go into a lot of detail about this example because it's foundational in the study of neural networks, but for now we'll return to calculating \(\frac{\partial s}{\partial X}\) to see how backpropagation works in a more general sense (and in practice). 
+</p>
+<p>
+    Let \(I(X)\) denote the set of functions \(f\) to which \(X\) is an input and such that \(f\) is an edge in a path from \(X\) to \(s\). It might look something like this:
+</p>
+<p class="math-scrollable">
+    \[
+    \begin{array}{}
+        &\nearrow&f_{1}&\rightarrow& Y_1 &\searrow\\
+        X&\rightarrow&f_{2}&\rightarrow& Y_2 &\rightarrow & f_{4} & \rightarrow s\\
+        &\searrow&f_{3}&\rightarrow& Y_3& \\
+    \end{array}
+    \]
+</p>
+<p>
+    in which case \(I(X)\) is the set \(\{f_1, f_2\}\). Suppose furthermore that for each function \(f \in I(X)\), \(O\) is the output of \(f\) and the gradient \(\frac{\partial s}{\partial O}\) is already known. So in this case, we know 
+</p> -->
