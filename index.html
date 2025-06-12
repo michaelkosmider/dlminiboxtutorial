@@ -41,6 +41,10 @@
                 <li>
                     <a href="https://github.com/michaelkosmider/dlminibox">Source Code</a>
                 </li>
+                <li>
+                    <a href="https://michaelkosmider.github.io/dlminibox_documentation/">Documentation</a>
+                </li>
+                
                               
             </ul>
         </nav>
@@ -48,7 +52,7 @@
         <main class="tutorial-content">
 
             <p>
-                In this tutorial, you will learn the theory behind reverse mode automatic differentiation, and see how to implement a real autograd system in practice. We will start with a theoretical overview and move on to implement the modules you'd typically see in an autograd framework, from basic functions like addition and matrix multiplication, to linear and convolution layers. This tutorial assumes the reader is familiar with multivariable calculus and strong with NumPy. Familiarity with basic PyTorch modules is also recommended, as this system will have a similar interface. The source code for this tutorial is available <a href="https://github.com/michaelkosmider/dlminibox">here</a>.
+                In this tutorial, you will learn the theory behind reverse mode automatic differentiation, and see how to implement a real autograd system in practice. We will start with a theoretical overview and move on to implement the modules you'd typically see in an autograd framework, from basic functions like addition and matrix multiplication, to linear and convolution layers. This tutorial assumes the reader is familiar with multivariable calculus and strong with NumPy. Familiarity with basic PyTorch modules is also recommended, as this system will have a similar interface. The source code for this tutorial is available <a href="https://github.com/michaelkosmider/dlminibox">here</a>, and the full documentation for the system is available <a href="https://michaelkosmider.github.io/dlminibox_documentation/">here</a>.
             </p>
 
             <p>
@@ -899,7 +903,7 @@ def matmul_backward(params, upstream=None):
 
             <section id="conclusion">
                 <p>
-                    This concludes the tutorial! We started with the inductive chain rule for scalars, the theorem at the heart of backpropagation. We then saw how more compactly represent computation graphs by allowing functions to have tensor inputs and outputs. Finally, we saw how to implement backpropagation via an autodiff system that uses backwards functions, implicitly invoking the chain rule. With this tutorial understood, head on over to the <a href="">documentation</a> website, where you can see how each function is implemented, and which introduces two new concepts: modules and optimizers for model training. 
+                    This concludes the tutorial! We started with the inductive chain rule for scalars, the theorem at the heart of backpropagation. We then saw how more compactly represent computation graphs by allowing functions to have tensor inputs and outputs. Finally, we saw how to implement backpropagation via an autodiff system that uses backwards functions, implicitly invoking the chain rule. With this tutorial understood, head on over to the <a href="https://michaelkosmider.github.io/dlminibox_documentation/">documentation</a> website, where you can see how each function is implemented, and which introduces two new concepts: modules and optimizers for model training. 
                 </p>
             </section>
 
